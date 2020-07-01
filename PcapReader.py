@@ -149,19 +149,19 @@ class PcapReader():
         rst_scan() -> all possible scans []
         will search for possible tcp scans in the file. if found will return the list of
         possible addresses in which there was a possible tcp scan
-        ONLY WORKS ON A SPECIFIC HOST
+        ONLY WORKS ON A SPECIFIC HOST not a port sweep
         """
 
         convs = (self.packets.sessions().keys())
         streams = []
         ports = {}
 
-        # run on all the conversations headers to check
+        # run on all the conversations to count all TCP conversations 
         for conv in convs:
             if('TCP' in conv):
                 streams.append(conv.replace(":", " ").split(" "))
 
-        # count seasions in stream if above 10 check for prectntege of rst packets
+        # count seasions in stream 
         for stream in streams:
             try:
                 if(stream[5] not in ports[stream[1],stream[4]]):

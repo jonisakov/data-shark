@@ -17,8 +17,8 @@ class AttackDetect(object):
         spoofed = {}
         for arp in arps:
             try:
-                if (spoofed[arp[2]] != arp[1]):
-                    print(arp[2] + "is spoofed! please check the address")
+                if (spoofed[arp[2]] != arp[0]):
+                    print(arp[2] + " is spoofed! please check the address")
                     print("spoofed by: " + spoofed[arp[2]] + " and " + arp[1])
             except:
                 spoofed[arp[3]] = arp[1]
@@ -106,6 +106,6 @@ class AttackDetect(object):
 
         # check for connect scan
         for packet in stream:
-            if(packet[TCP].src == scanned[1] and not packet[TCP].flags & SYN)
+            if(packet[TCP].src == scanned[1] and not packet[TCP].flags & SYN):
                 # either the tcp_connect or the tcp_stealth
-                pass
+                continue
