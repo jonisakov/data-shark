@@ -20,6 +20,8 @@ class AttackDetect(object):
                 if (spoofed[arp[2]] != arp[0]):
                     print(arp[2] + " is spoofed! please check the address")
                     print("spoofed by: " + spoofed[arp[2]] + " and " + arp[1])
+                else:
+                    spoofed[arp[3]] = arp[1]
             except:
                 spoofed[arp[3]] = arp[1]
 
