@@ -1,7 +1,6 @@
 from scapy.contrib.cdp import CDPMsgDeviceID
 from scapy.layers.inet import TCP, IP
-
-# import PcapReader
+import time# import PcapReader  
 from scapy.all import *
 
 load_contrib("cdp")
@@ -47,33 +46,44 @@ class AttackDetect(object):
         """
         # displays the cdp queries
         load_contrib("cdp")
-        spoofing = []
+        cdp_packets = []
         counter = []
 
         for PACKET in packets:
             if CDPMsgDeviceID in PACKET:
-                print("sent by: " + PACKET["CDPMsgDeviceID"].val.decode() + ", ip address: " + PACKET[
-                    "CDPAddrRecordIPv4"].addr)
-                spoofing.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr])
-                counter.append(PACKET.src)
+                #print("sent by: " + PACKET["CDPMsgDeviceID"].val.decode() + ", ip address: " + PACKET[
+                   # "CDPAddrRecordIPv4"].addr)
+                #print( time.asctime(time.localtime(PACKET.time)))
+                cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr,PACKET.time])
+                
 
-        # prints the spoofing
-        counts = dict()
-        # for mac in counter[0]:
-        for mac in counter:
-            counts[mac] = counts.get(mac, 0) + 1
 
-        # prints of there was a spoofing attempt
-        for address in counts:
-            if counts[address] >= 10:
-            # if counts[address] >= 1:
-                print("CDP Mapping was preformed by: " + address)
+        hosts = dict()
+        for cdp_packet in cdp_packets:
+            
+            src_mac = cdp_packet[0]
+            hosts[src_mac] = hosts.get(src_mac,{})
+            last_host_cdp_count = hosts[src_mac].get('cdp_count',0)
+            last_cdp_timestamp = hosts[src_mac].get('timestamp',cdp_packet[-1])
+            last_cdp_interval = hosts[src_mac].get('last_interval',cdp_packet[-1])
+            current_cdp_interval = cdp_packet[-1] - last_cdp_timestamp
+            hosts[src_mac] = {'cdp_count' : last_host_cdp_count + 1 , 'last_interval' : current_cdp_interval , 'total_interval': current_cdp_interval + last_cdp_interval,  'timestamp': last_cdp_timestamp }
+
+        for host in hosts.keys():
+            host_cdp_count = hosts[host]['cdp_count']
+            host_total_interval = hosts[host]['total_interval']
+            host_cdp_rate = host_total_interval/host_cdp_count
+            hosts[host] = {'cdp_count' : host_cdp_count,'cdp_rate': host_cdp_rate}
+            if host_cdp_rate > 5: # 5 seconds for cdp is default
+                print(f'The host: {host} has a unsual cdp rate of {host_cdp_rate}. 5 is default')
+
+        print(str(hosts))
 
         # spoofing to non duplicate      
         new_spoofing = []
-        for s in spoofing:
-            if s not in new_spoofing:
-                new_spoofing.append(s)
+        for packet in cdp_packets:
+            if packet[0:3] not in new_spoofing:
+                new_spoofing.append(packet[0:3])
 
         return new_spoofing
 
