@@ -46,14 +46,11 @@ class AttackDetect(object):
         """
         # displays the cdp queries
         load_contrib("cdp")
+        cdp_maps_detected = dict()
         cdp_packets = []
-        counter = []
-
+        
         for PACKET in packets:
             if CDPMsgDeviceID in PACKET:
-                #print("sent by: " + PACKET["CDPMsgDeviceID"].val.decode() + ", ip address: " + PACKET[
-                   # "CDPAddrRecordIPv4"].addr)
-                #print( time.asctime(time.localtime(PACKET.time)))
                 cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr,PACKET.time])
                 
 
@@ -75,17 +72,19 @@ class AttackDetect(object):
             host_cdp_rate = host_total_interval/host_cdp_count
             hosts[host] = {'cdp_count' : host_cdp_count,'cdp_rate': host_cdp_rate}
             if host_cdp_rate > 5: # 5 seconds for cdp is default
-                print(f'The host: {host} has a unsual cdp rate of {host_cdp_rate}. 5 is default')
+                print(f'The host: {host} has a unsual cdp rate of {host_cdp_rate}/s. 5 is default')
+                cdp_maps_detected[host] = host_cdp_rate
+
 
         print(str(hosts))
 
         # spoofing to non duplicate      
-        new_spoofing = []
+        cdp_convs = []
         for packet in cdp_packets:
-            if packet[0:3] not in new_spoofing:
-                new_spoofing.append(packet[0:3])
+            if packet[0:3] not in cdp_convs:
+                cdp_convs.append(packet[0:3])
 
-        return new_spoofing
+        return cdp_convs, cdp_maps_detected
 
     @staticmethod
     def tcp_scan(streams, packets):

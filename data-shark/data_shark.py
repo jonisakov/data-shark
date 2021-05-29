@@ -6,6 +6,7 @@ from NetScheme import NetScheme
 from AttackDetect import AttackDetect
 import argparse
 from Machine_Learning import Machine_Learning
+from report_engine import ReportEngine
 
 
 def main():
@@ -37,7 +38,8 @@ def main():
                         required=False, action='store_true')
     parser.add_argument('-ports', '--port_scan',
                         help='checks for possible tcp port scan', required=False, action='store_true')
-
+    parser.add_argument('-r', '--output_report_path',
+                        help='Generate a report to specified path', required=False)   
     args = vars(parser.parse_args())
 
     # Read the pcap
@@ -48,6 +50,7 @@ def main():
     scheme = NetScheme()
     attacks = AttackDetect()
     learn = Machine_Learning()
+    report = ReportEngine()
 
     # run the different attributes
 
@@ -77,8 +80,13 @@ def main():
 
     # cdp detection
     if args["detect_cdpmapping"]:
-        scheme.cdp_display(attacks.cdp_mapping(packets.packets))
-
+        cdp_convs, cdp_attack_dict = attacks.cdp_mapping(packets.packets)
+        scheme.cdp_display(cdp_convs)
+        if len(cdp_attack_dict) > 0:
+            for cdp_atatacker in cdp_attack_dict.keys():
+                report._add_report_row('CDP Mapping',f'Source MAC {cdp_atatacker} has suspicius CDP packet rate of {cdp_attack_dict[cdp_atatacker]} ','detected')
+        else:
+                report._add_report_row('CDP Mapping','','detected')
     # double tagging
     if args["detect_dubtagging"]:
         packets.doubletag()
@@ -99,6 +107,9 @@ def main():
     # will detect and alert in case of tcp generic port scan
     if args["port_scan"]:
         attacks.generic_tcp_port_scan(packets.tcp_scan(), packets.packets)
+    
+    if args['output_report_path']:
+        report._generate_report(args['output_report_path'])
 
 
 if __name__ == "__main__":
