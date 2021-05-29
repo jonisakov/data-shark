@@ -22,6 +22,7 @@ class AttackDetect(object):
         """
         # K: ip , V: mac
         arp_table = {}
+        arp_attacker = {}
         for arp in arps:
             # src_mac = arp[0]
             dst_mac = arp[1]
@@ -32,12 +33,14 @@ class AttackDetect(object):
                 if arp_table[dst_ip] != dst_mac:
                     print(dst_ip + " is spoofed! please check the address")
                     print("spoofed by: " + arp_table[dst_ip] + " and " + dst_mac)
+                    arp_attacker[dst_ip] = f'{arp_table[dst_ip]} and {dst_mac}'
+
                 else:
                     arp_table[dst_ip] = dst_mac
             except Exception as e:
                 arp_table[dst_ip] = dst_mac
                 # logging.exception(e)
-
+        return arp_attacker
     @staticmethod
     def cdp_mapping(packets):
         """
@@ -48,7 +51,7 @@ class AttackDetect(object):
         load_contrib("cdp")
         cdp_maps_detected = dict()
         cdp_packets = []
-        
+
         for PACKET in packets:
             if CDPMsgDeviceID in PACKET:
                 cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr,PACKET.time])

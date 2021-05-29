@@ -1,5 +1,6 @@
 # IMPORTS
 # from scapy.all import *
+import re
 from PcapReader import PcapReader
 # import networkx as nx
 from NetScheme import NetScheme
@@ -71,8 +72,12 @@ def main():
     # arp poisoning detection
     if args["detect_arppoisoning"]:
         packets.listarps()
-        attacks.arppoisoning(packets.isat)
-
+        attacker_dict = attacks.arppoisoning(packets.isat)
+        if(len(attacker_dict) > 0):
+            for attacker in attacker_dict.keys():
+                report._add_report_row("Arp Poisoning",f'{attacker} Spoofed these MAC Addresses: {attacker_dict[attacker]}','detected')
+        else:
+            report._add_report_row("Arp Poisoning",'','not_detected')
     # dos detection visualisation
     if args["detect_dosattack"]:
         learn.Dos_table(packets.packets)
@@ -81,15 +86,21 @@ def main():
     # cdp detection
     if args["detect_cdpmapping"]:
         cdp_convs, cdp_attack_dict = attacks.cdp_mapping(packets.packets)
-        scheme.cdp_display(cdp_convs)
         if len(cdp_attack_dict) > 0:
-            for cdp_atatacker in cdp_attack_dict.keys():
-                report._add_report_row('CDP Mapping',f'Source MAC {cdp_atatacker} has suspicius CDP packet rate of {cdp_attack_dict[cdp_atatacker]} ','detected')
+            for cdp_attacker in cdp_attack_dict.keys():
+                report._add_report_row('CDP Mapping',f'Source MAC {cdp_attacker} has suspicius CDP packet rate of {cdp_attack_dict[cdp_attacker]} ','detected')
+                scheme.cdp_display(cdp_convs)
         else:
-                report._add_report_row('CDP Mapping','','detected')
+                report._add_report_row('CDP Mapping','','not_detected')
     # double tagging
     if args["detect_dubtagging"]:
-        packets.doubletag()
+        attacker_dict = packets.doubletag()
+        if len(attacker_dict) > 0:
+            for attacker in attacker_dict.keys():
+                report._add_report_row('VLAN Double Tagging',f'{attacker} made a double tag attack using {attacker_dict[attacker]}','detected')
+          
+        else:
+                report._add_report_row('VLAN Double Tagging','','not_detected')
 
     # display DHCP requests
     if args["display_DHCP"]:
@@ -97,8 +108,8 @@ def main():
         scheme.DHCP_plot(req, off, ack)
 
     # will detect and alert in case of tcp connect scan
-    if args["tcp_scan"]:
-        attacks.tcp_scan(packets.tcp_scan(), packets.packets)
+    #if args["tcp_scan"]:
+    #   attacks.tcp_scan(packets.tcp_scan(), packets.packets)
         # scanned, if_scanned = attacks.tcp_scan(packets.tcp_scan(), packets.packets)
 
         # if( if_scanned):
@@ -106,8 +117,13 @@ def main():
 
     # will detect and alert in case of tcp generic port scan
     if args["port_scan"]:
-        attacks.generic_tcp_port_scan(packets.tcp_scan(), packets.packets)
-    
+        result = attacks.generic_tcp_port_scan(packets.tcp_scan(), packets.packets)
+        if result[1]:
+            for attacker in result[0].keys():
+                report._add_report_row('Generic port Scan',f'{attacker} made a port scan attack using 500+ different ports on {result[0][attacker]}','detected')
+        else:
+            report._add_report_row('Generic port Scan','','not_detected')
+            
     if args['output_report_path']:
         report._generate_report(args['output_report_path'])
 

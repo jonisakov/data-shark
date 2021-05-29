@@ -1,3 +1,5 @@
+# ImportsE
+
 # Imports
 from scapy.all import *
 # import re
@@ -7,8 +9,6 @@ from scapy.layers.dhcp import DHCP
 from scapy.layers.inet import TCP, IP, Ether
 from scapy.layers.inet6 import IPv6
 from scapy.layers.l2 import ARP
-
-
 class PcapReader(object):
     """will read a pcap file and preform certain functions on the data"""
 
@@ -109,6 +109,8 @@ class PcapReader(object):
         for the vlan double tagging attack
         """
         # checks for two tags of dot1Q
+
+        attacker_dict = {}
         for PACKET in self.packets:
             counter = 0
             dot1q = 0
@@ -121,12 +123,13 @@ class PcapReader(object):
                     dot1q = dot1q + 1
                     layers.append(str(PACKET.getlayer(counter).vlan))
                 if dot1q == 2:
-                    print(
-                        "double vlan tagging from " + PACKET[Ether].src + "using tags " + layers[0] + ", " + layers[1])
+                    print("double vlan tagging from " + PACKET[Ether].src + "using tags " + layers[0] + ", " + layers[1])
+                    attacker_dict[PACKET[Ether].src] = f'Tags: {layers[0]} and {layers[1]}'
                     break
 
                 counter += 1
-
+        return attacker_dict    
+        
     def dhcp_detection(self):
         """
         dhcp_detection(self) -> (req, offers, acks)
