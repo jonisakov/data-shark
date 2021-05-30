@@ -42,4 +42,6 @@ class Machine_Learning(object):
 
         self.dt.plot(kind='area', x='time', y='bits', ax=ax)
 
+        plt.get_current_fig_manager().set_window_title('Dos visualization')
+
         plt.show()

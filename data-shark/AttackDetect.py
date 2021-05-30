@@ -1,6 +1,8 @@
 from scapy.contrib.cdp import CDPMsgDeviceID
 from scapy.layers.inet import TCP, IP
-import time# import PcapReader  
+from scapy.layers.l2 import ARP
+import time
+# import PcapReader
 from scapy.all import *
 
 load_contrib("cdp")
@@ -41,6 +43,8 @@ class AttackDetect(object):
                 arp_table[dst_ip] = dst_mac
                 # logging.exception(e)
         return arp_attacker
+
+
     @staticmethod
     def cdp_mapping(packets):
         """
@@ -55,8 +59,6 @@ class AttackDetect(object):
         for PACKET in packets:
             if CDPMsgDeviceID in PACKET:
                 cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr,PACKET.time])
-                
-
 
         hosts = dict()
         for cdp_packet in cdp_packets:
@@ -78,8 +80,8 @@ class AttackDetect(object):
                 print(f'The host: {host} has a unsual cdp rate of {host_cdp_rate}/s. 5 is default')
                 cdp_maps_detected[host] = host_cdp_rate
 
-
-        print(str(hosts))
+        if hosts != {}:
+            print(hosts)
 
         # spoofing to non duplicate      
         cdp_convs = []
@@ -89,31 +91,31 @@ class AttackDetect(object):
 
         return cdp_convs, cdp_maps_detected
 
-    @staticmethod
-    def tcp_scan(streams, packets):
-        """
-        tcp_connect_scan(self, streams[], packets) -> return( str(dst_scan,src_scan), bool if_scanned)
-        will use the data read from the pcap to determine if there was a possible tcp connect scan
-        if there was one will inform to the source of the scan and the destination
-        """
-        # all_packets = 0
-        # rst_packets = 0
-        # will count the rst flagged packets percentage out of all the packets between the sources
-        for stream in streams:
-            all_packets = 0
-            rst_packets = 0
-            for PACKET in packets:
-                if PACKET.haslayer(TCP):
-                    if PACKET.getlayer(IP).src == stream[0] and PACKET.getlayer(IP).dst == stream[1]:
-                        all_packets += 1
-                        if PACKET[TCP].flags & 0x04:
-                            rst_packets += 1
-            # if one out of 6 packets is rst assume its a scan attack
-            if all_packets / 6 < rst_packets:
-                print("tcp_connect_scan was made by:" + str(stream[1]) + " on:" + str(stream[0]))
-                return stream, True
-        # no stream was found so return a false
-        return ('0.0.0.0', '0.0.0.0'), False
+    # @staticmethod
+    # def tcp_scan(streams, packets):
+    #     """
+    #     tcp_connect_scan(self, streams[], packets) -> return( str(dst_scan,src_scan), bool if_scanned)
+    #     will use the data read from the pcap to determine if there was a possible tcp connect scan
+    #     if there was one will inform to the source of the scan and the destination
+    #     """
+    #     # all_packets = 0
+    #     # rst_packets = 0
+    #     # will count the rst flagged packets percentage out of all the packets between the sources
+    #     for stream in streams:
+    #         all_packets = 0
+    #         rst_packets = 0
+    #         for PACKET in packets:
+    #             if PACKET.haslayer(TCP):
+    #                 if PACKET.getlayer(IP).src == stream[0] and PACKET.getlayer(IP).dst == stream[1]:
+    #                     all_packets += 1
+    #                     if PACKET[TCP].flags & 0x04:
+    #                         rst_packets += 1
+    #         # if one out of 6 packets is rst assume its a scan attack
+    #         if all_packets / 6 < rst_packets:
+    #             print("tcp_connect_scan was made by:" + str(stream[1]) + " on:" + str(stream[0]))
+    #             return stream, True
+    #     # no stream was found so return a false
+    #     return ('0.0.0.0', '0.0.0.0'), False
 
     @staticmethod
     def generic_tcp_port_scan(streams, packets):
@@ -172,3 +174,46 @@ class AttackDetect(object):
     #         if packet[TCP].src == scanned[1] and not packet[TCP].flags & SYN:
     #             # either the tcp_connect or the tcp_stealth
     #             continue
+
+
+    @staticmethod
+    def generic_mac_flooding(packets):
+        """
+        generic_mac_flooding(packets) ->  return( number of unique ips and macs, bool if_scanned)
+        will use the data read from the pcap to determine if there was a possible generic mac flooding attack
+        if there was one will inform the number of unique ips and macs
+        """
+
+        # Dict: {IP_MAC : number of shows}
+        generic_mac_flooding = {}
+        total_unique = 0
+
+        for PACKET in packets:
+            if PACKET.haslayer(IP):
+                source_ip = str(PACKET.getlayer(IP).src)
+                source_mac = str(PACKET.src)
+                dest_ip = str(PACKET.getlayer(IP).dst)
+                dest_mac = str(PACKET.dst)
+
+                if "{}_{}".format(source_ip, source_mac) in generic_mac_flooding.keys():
+                    generic_mac_flooding["{}_{}".format(source_ip, source_mac)] += 1
+                else:
+                    generic_mac_flooding["{}_{}".format(source_ip, source_mac)] = 1
+                    # print("{}_{}".format(source_ip, source_mac))
+
+                if "{}_{}".format(dest_ip, dest_mac) in generic_mac_flooding.keys():
+                    generic_mac_flooding[f'{dest_ip}_{dest_mac}'] += 1
+                else:
+                    generic_mac_flooding[f'{dest_ip}_{dest_mac}'] = 1
+                    # print("{}_{}".format(dest_ip, dest_mac))
+
+        for index in generic_mac_flooding.keys():
+            if generic_mac_flooding[index] == 1:
+                total_unique += 1
+
+        # print(total_unique)
+        if total_unique > 100000:
+            print(f"MAC Flooding was detected using {total_unique} IP & MAC addresses")
+            return total_unique, True
+
+        return total_unique, False

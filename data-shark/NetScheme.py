@@ -1,7 +1,8 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-
+import logging
+logging.getLogger().setLevel(logging.CRITICAL)
 
 class NetScheme(object):
     """this class helps us to create a network scheme"""
@@ -31,8 +32,11 @@ class NetScheme(object):
 
         pos = nx.spring_layout(G)
         nx.draw(G, pos, labels=nodedict, with_labels=True)
-        print(edgedict)
+        # print(edgedict)
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edgedict, font_color='red')
+
+        plt.get_current_fig_manager().set_window_title('View the layer 3 network scheme')
+
         plt.show()
 
     # def creategraph_layer3(self, addresses, sessions):
@@ -113,14 +117,16 @@ class NetScheme(object):
                            Line2D([0], [0], color='b', lw=4, label='is at',
                                   markerfacecolor='g', markersize=15)]
 
-        plt.legend(handles=legend_elements)
+        plt.legend(handles=legend_elements, title='Params:')
+
+        plt.get_current_fig_manager().set_window_title('View the layer 2 network scheme')
 
         plt.show()
 
     @staticmethod
     def cdp_display(queries):
         """
-        cdp_display(self,queries) -> graph of al cdp queries made in the pcap
+        cdp_display(self,queries) -> graph of all cdp queries made in the pcap
         will display with network x all the cdp made in the pcap file
         """
 
@@ -150,6 +156,9 @@ class NetScheme(object):
         # create the node/edge and name them
         nx.draw_networkx_edge_labels(G, pos, edge_labels=ips)
         nx.draw_networkx(G, pos, labels=nodedict)
+
+        plt.get_current_fig_manager().set_window_title('View a graph of all CDP queries made in the pcap')
+
         plt.show()
 
     @staticmethod
@@ -187,7 +196,7 @@ class NetScheme(object):
             G.add_edge(reverselookupdict[address], reverselookupdict['FF:FF:FF:FF:FF:FF'])
             # edges[(reverselookupdict[address],reverselookupdict['FF:FF:FF:FF:FF:FF'])] = address
 
-        # add the offer nodes
+        # add the offers nodes
         for address in off:
             G.add_node(i)
             nodedict[i] = address[1]
@@ -203,7 +212,7 @@ class NetScheme(object):
             G.add_edge(reverselookupdict[address[1]], reverselookupdict[address[2]])
             edges[reverselookupdict[address[1]], reverselookupdict[address[2]]] = address[0]
 
-        # add the DHCPACK nodes
+        # add the DHCP acknowledge nodes
         for address in ack:
             G.add_node(i)
             nodedict[i] = address[0]
@@ -219,10 +228,10 @@ class NetScheme(object):
             G.add_edge(reverselookupdict[address[0]], reverselookupdict[address[1]])
 
         print("""
-            Labels:
-            Red - requests / discover nodes
-            Blue - offers / acknowledge nodes
-            Green - DHCPACK nodes
+            DHCP Labels:
+            Red - DHCP request / discover
+            Blue - DHCP offers
+            Green - DHCP acknowledge
             """)
 
         # display the graph
@@ -230,4 +239,7 @@ class NetScheme(object):
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edges)
         nx.draw_networkx(G, pos, node_color=color_map, labels=nodedict, with_labels=True)
         plt.legend(fancybox=True, framealpha=1, shadow=True, borderpad=1)
+
+        plt.get_current_fig_manager().set_window_title('View a graph of all DHCP requests made in the pcap')
+
         plt.show()

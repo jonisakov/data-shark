@@ -1,5 +1,3 @@
-# ImportsE
-
 # Imports
 from scapy.all import *
 # import re
@@ -193,11 +191,15 @@ class PcapReader(object):
         for port in ports:
             connections.append(len(ports[port]))
 
-        std = statistics.stdev(connections)
-        avg = sum(connections) / len(connections)
-        avg_plus_std = avg + (std * 2)
+        if connections:
+            std = statistics.stdev(connections)
+            avg = sum(connections) / len(connections)
+            avg_plus_std = avg + (std * 2)
 
-        for port in ports:
-            if len(ports[port]) > avg_plus_std:
-                streams.append(port)
-        return streams
+            for port in ports:
+                if len(ports[port]) > avg_plus_std:
+                    streams.append(port)
+            return streams
+
+        else:
+            return []
