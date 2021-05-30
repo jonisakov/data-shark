@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-class Machine_Learning(object):
+class DOS_Detect(object):
 
     def __init__(self):
         self.dt = pd.DataFrame()

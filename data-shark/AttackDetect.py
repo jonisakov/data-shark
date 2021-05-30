@@ -1,7 +1,8 @@
 from scapy.contrib.cdp import CDPMsgDeviceID
 from scapy.layers.inet import TCP, IP
-from scapy.layers.l2 import ARP
-import time
+from scapy.layers.l2 import Ether
+# from scapy.layers.l2 import ARP
+# import time
 # import PcapReader
 from scapy.all import *
 
@@ -33,8 +34,8 @@ class AttackDetect(object):
             try:
                 # Let's check
                 if arp_table[dst_ip] != dst_mac:
-                    print(dst_ip + " is spoofed! please check the address")
-                    print("spoofed by: " + arp_table[dst_ip] + " and " + dst_mac)
+                    print("\n"+dst_ip + " is spoofed! please check the address")
+                    print("spoofed by: " + arp_table[dst_ip] + " and " + dst_mac+"\n")
                     arp_attacker[dst_ip] = f'{arp_table[dst_ip]} and {dst_mac}'
 
                 else:
@@ -58,36 +59,38 @@ class AttackDetect(object):
 
         for PACKET in packets:
             if CDPMsgDeviceID in PACKET:
-                cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr,PACKET.time])
+                cdp_packets.append([PACKET.src, PACKET["CDPMsgDeviceID"].val.decode(), PACKET["CDPAddrRecordIPv4"].addr, PACKET.time])
 
         hosts = dict()
         for cdp_packet in cdp_packets:
             
             src_mac = cdp_packet[0]
-            hosts[src_mac] = hosts.get(src_mac,{})
-            last_host_cdp_count = hosts[src_mac].get('cdp_count',0)
-            last_cdp_timestamp = hosts[src_mac].get('timestamp',cdp_packet[-1])
-            last_cdp_interval = hosts[src_mac].get('last_interval',cdp_packet[-1])
+            hosts[src_mac] = hosts.get(src_mac, {})
+            last_host_cdp_count = hosts[src_mac].get('cdp_count', 0)
+            last_cdp_timestamp = hosts[src_mac].get('timestamp', cdp_packet[-1])
+            last_cdp_interval = hosts[src_mac].get('last_interval', cdp_packet[-1])
             current_cdp_interval = cdp_packet[-1] - last_cdp_timestamp
-            hosts[src_mac] = {'cdp_count' : last_host_cdp_count + 1 , 'last_interval' : current_cdp_interval , 'total_interval': current_cdp_interval + last_cdp_interval,  'timestamp': last_cdp_timestamp }
+            hosts[src_mac] = {'cdp_count': last_host_cdp_count + 1, 'last_interval': current_cdp_interval, 'total_interval': current_cdp_interval + last_cdp_interval,  'timestamp': last_cdp_timestamp}
 
         for host in hosts.keys():
             host_cdp_count = hosts[host]['cdp_count']
             host_total_interval = hosts[host]['total_interval']
             host_cdp_rate = host_total_interval/host_cdp_count
-            hosts[host] = {'cdp_count' : host_cdp_count,'cdp_rate': host_cdp_rate}
-            if host_cdp_rate > 5: # 5 seconds for cdp is default
-                print(f'The host: {host} has a unsual cdp rate of {host_cdp_rate}/s. 5 is default')
+            hosts[host] = {'cdp_count': host_cdp_count, 'cdp_rate': host_cdp_rate}
+
+            # 5 seconds for cdp is default
+            if host_cdp_rate > 5:
+                print(f'\nThe host: {host} has a unusual cdp rate of {host_cdp_rate}/s. 5 is default')
                 cdp_maps_detected[host] = host_cdp_rate
 
         if hosts != {}:
-            print(hosts)
+            print("\n"+str(hosts)+"\n")
 
         # spoofing to non duplicate      
         cdp_convs = []
-        for packet in cdp_packets:
-            if packet[0:3] not in cdp_convs:
-                cdp_convs.append(packet[0:3])
+        for PACKET in cdp_packets:
+            if PACKET[0:3] not in cdp_convs:
+                cdp_convs.append(PACKET[0:3])
 
         return cdp_convs, cdp_maps_detected
 
@@ -118,6 +121,34 @@ class AttackDetect(object):
     #     return ('0.0.0.0', '0.0.0.0'), False
 
     @staticmethod
+    def doubletag(packets):
+        """
+        doubletag(self) -> will return an array of all vlan double tagged
+        for the vlan double tagging attack
+        """
+        # checks for two tags of dot1Q
+
+        attacker_dict = {}
+        for PACKET in packets:
+            counter = 0
+            dot1q = 0
+            layers = []
+            while True:
+                layer = PACKET.getlayer(counter)
+                if layer is None:
+                    break
+                if layer.name == "802.1Q":
+                    dot1q = dot1q + 1
+                    layers.append(str(PACKET.getlayer(counter).vlan))
+                if dot1q == 2:
+                    print("double vlan tagging from " + PACKET[Ether].src + " using tags " + layers[0] + ", " + layers[1] + "\n")
+                    attacker_dict[PACKET[Ether].src] = f'Tags: {layers[0]} and {layers[1]}'
+                    break
+
+                counter += 1
+        return attacker_dict
+
+    @staticmethod
     def generic_tcp_port_scan(streams, packets):
         """
         generic_tcp_port_scan(self, streams[], packets) -> return( {str(dst_scan) : str(src_scan) } , bool if_scanned)
@@ -139,12 +170,12 @@ class AttackDetect(object):
             # Dport has more then X unique values, between 2 hosts
             if len(different_ports) > 500:
                 print("generic_tcp_port_scan was made by:" + str(stream[0]) + " on:" + str(stream[1]) +
-                      " with {} unique ports".format(len(different_ports)))
-                generic_tcp_port_scan[str(stream[0])] = str(stream[1])
+                      " with {} unique ports\n".format(len(different_ports)))
+                generic_tcp_port_scan[str(stream[0])] = [str(stream[1]), len(different_ports)]
 
         # no stream was found so return a false
         if len(generic_tcp_port_scan) == 0:
-            return {'0.0.0.0': '0.0.0.0'}, False
+            return {'0.0.0.0': ['0.0.0.0', 0]}, False
 
         # if one out of 6 packets is rst assume its a scan attack
         return generic_tcp_port_scan, True
@@ -213,7 +244,7 @@ class AttackDetect(object):
 
         # print(total_unique)
         if total_unique > 100000:
-            print(f"MAC Flooding was detected using {total_unique} IP & MAC addresses")
+            print(f"MAC Flooding was detected using {total_unique} IP & MAC addresses\n")
             return total_unique, True
 
         return total_unique, False

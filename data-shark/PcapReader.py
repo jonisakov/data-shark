@@ -100,33 +100,6 @@ class PcapReader(object):
                 # checks who answered and what is the answer the opcode for this is 2
                 if PACKET[ARP].op == 2:
                     self.isat.append([PACKET.src, PACKET.dst, PACKET.psrc, PACKET.pdst])
-
-    def doubletag(self):
-        """
-        doubletag(self) -> will return an array of all vlan double tagged
-        for the vlan double tagging attack
-        """
-        # checks for two tags of dot1Q
-
-        attacker_dict = {}
-        for PACKET in self.packets:
-            counter = 0
-            dot1q = 0
-            layers = []
-            while True:
-                layer = PACKET.getlayer(counter)
-                if layer is None:
-                    break
-                if layer.name == "802.1Q":
-                    dot1q = dot1q + 1
-                    layers.append(str(PACKET.getlayer(counter).vlan))
-                if dot1q == 2:
-                    print("double vlan tagging from " + PACKET[Ether].src + "using tags " + layers[0] + ", " + layers[1])
-                    attacker_dict[PACKET[Ether].src] = f'Tags: {layers[0]} and {layers[1]}'
-                    break
-
-                counter += 1
-        return attacker_dict    
         
     def dhcp_detection(self):
         """
@@ -142,15 +115,15 @@ class PcapReader(object):
             if PACKET.haslayer(DHCP):
                 options = PACKET[DHCP].options
 
-                # DHCPDISCOVER
+                # DHCP DISCOVER
                 if options[0][1] == 1:
                     requesting.append(PACKET[Ether].src)
 
-                # DHCPOFFER 
+                # DHCP OFFER
                 if options[0][1] == 2:
                     offers.append([PACKET.getlayer(3).yiaddr, PACKET.getlayer(3).siaddr, PACKET[Ether].dst])
 
-                # DHCPACK
+                # DHCP ACK
                 if options[0][1] == 5:
                     acks.append([PACKET[IP].src, PACKET[IP].dst])
 

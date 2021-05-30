@@ -1,12 +1,12 @@
 # IMPORTS
 # from scapy.all import *
-import re
+# import re
 from PcapReader import PcapReader
 # import networkx as nx
 from NetScheme import NetScheme
 from AttackDetect import AttackDetect
 import argparse
-from Machine_Learning import Machine_Learning
+from DOS_Detect import DOS_Detect
 from report_engine import ReportEngine
 
 
@@ -55,7 +55,7 @@ def main():
     # declare the objects
     scheme = NetScheme()
     attacks = AttackDetect()
-    learn = Machine_Learning()
+    learn = DOS_Detect()
     report = ReportEngine()
 
     # run the different attributes
@@ -78,11 +78,13 @@ def main():
 
     # layer 2 scheme
     if args["layer_2"]:
+        print("Working on: {}".format("View layer 2 scheme"))
         packets.listarps()
         scheme.creategraph_layer2(packets.listhosts(layer=2), packets.whohas, packets.isat)
 
     # layer 3 scheme
     if args["layer_3"]:
+        print("Working on: {}".format("View layer 3 scheme"))
         scheme.creategraph_layer3(packets.listhosts(layer=3), packets.listconvs())
         # scheme.creategraph_layer3(packets.listhosts(layer=3),packets.sessions)
 
@@ -92,46 +94,50 @@ def main():
 
     # arp poisoning detection
     if args["detect_arppoisoning"]:
+        print("Working on: {}".format("Detect ARP poisoning"))
         packets.listarps()
         attacker_dict = attacks.arppoisoning(packets.isat)
-        if(len(attacker_dict) > 0):
+        if len(attacker_dict) > 0:
             for attacker in attacker_dict.keys():
-                report._add_report_row("Arp Poisoning",f'{attacker} Spoofed these MAC Addresses: {attacker_dict[attacker]}','detected')
+                report._add_report_row("Arp Poisoning", f'{attacker} Spoofed these MAC Addresses: {attacker_dict[attacker]}', 'detected')
         else:
-            report._add_report_row("ARP Poisoning",'','not_detected')
+            report._add_report_row("ARP Poisoning", '', 'not_detected')
 
     # dos detection visualisation
     if args["detect_dosattack"]:
+        print("Working on: {}".format("Detect DOS attack"))
         learn.Dos_table(packets.packets)
         learn.Dos_visual()
 
     # cdp detection
     if args["detect_cdpmapping"]:
+        print("Working on: {}".format("Detect CDP mapping"))
         cdp_convs, cdp_attack_dict = attacks.cdp_mapping(packets.packets)
         if len(cdp_attack_dict) > 0:
             for cdp_attacker in cdp_attack_dict.keys():
-                report._add_report_row('CDP Mapping',f'Source MAC {cdp_attacker} has suspicius CDP packet rate of {cdp_attack_dict[cdp_attacker]}','detected')
+                report._add_report_row('CDP Mapping', f'Source MAC {cdp_attacker} has suspicious CDP packet rate of {cdp_attack_dict[cdp_attacker]}', 'detected')
                 scheme.cdp_display(cdp_convs)
         else:
-                report._add_report_row('CDP Mapping','','not_detected')
+                report._add_report_row('CDP Mapping', '', 'not_detected')
 
     # double tagging
     if args["detect_dubtagging"]:
-        attacker_dict = packets.doubletag()
+        print("Working on: {}".format("Detect double tagging attack"))
+        attacker_dict = attacks.doubletag(packets.packets)
         if len(attacker_dict) > 0:
             for attacker in attacker_dict.keys():
-                report._add_report_row('VLAN Double Tagging',f'{attacker} made a double tag attack using {attacker_dict[attacker]}','detected')
-          
+                report._add_report_row('VLAN Double Tagging', f'{attacker} made a double tag attack using {attacker_dict[attacker]}', 'detected')
         else:
-                report._add_report_row('VLAN Double Tagging','','not_detected')
+                report._add_report_row('VLAN Double Tagging', '', 'not_detected')
 
     # display DHCP requests
     if args["display_DHCP"]:
+        print("Working on: {}".format("Display_DHCP"))
         req, off, ack = packets.dhcp_detection()
         scheme.DHCP_plot(req, off, ack)
 
     # will detect and alert in case of tcp connect scan
-    #if args["tcp_scan"]:
+    # if args["tcp_scan"]:
     #   attacks.tcp_scan(packets.tcp_scan(), packets.packets)
         # scanned, if_scanned = attacks.tcp_scan(packets.tcp_scan(), packets.packets)
 
@@ -140,22 +146,26 @@ def main():
 
     # will detect and alert in case of generic port scan
     if args["detect_port_scan"]:
+        print("Working on: {}".format("Detect generic Port Scan"))
         result = attacks.generic_tcp_port_scan(packets.tcp_scan(), packets.packets)
         if result[1]:
             for attacker in result[0].keys():
-                report._add_report_row('Generic Port Scan',f'{attacker} made a port scan attack using 500+ different ports on {result[0][attacker]}','detected')
+                report._add_report_row('Generic Port Scan', f'{attacker} made a port scan attack using {result[0][attacker][1]} different ports on {result[0][attacker][0]}', 'detected')
         else:
-            report._add_report_row('Generic Port Scan','','not_detected')
+            report._add_report_row('Generic Port Scan', '', 'not_detected')
 
     # will detect and alert in case of generic port scan
     if args["detect_mac_flooding"]:
+        print("Working on: {}".format("Detect MAC flooding attack"))
         result = attacks.generic_mac_flooding(packets.packets)
         if result[1]:
             report._add_report_row('Generic MAC Flooding', f'MAC Flooding was detected using {result[0]} IP & MAC addresses', 'detected')
         else:
-            report._add_report_row('Generic MAC Flooding','','not_detected')
+            report._add_report_row('Generic MAC Flooding', '', 'not_detected')
 
     if args['output_report_path']:
+        print("Working on: {}".format("Final Report"))
+        print("Location: {}".format(args['output_report_path']))
         report._generate_report(args['output_report_path'])
 
 
